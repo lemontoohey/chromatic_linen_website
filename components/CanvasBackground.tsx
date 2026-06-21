@@ -20,7 +20,12 @@ const FRAGMENT_SRC = `
   uniform float u_time;
   uniform vec2 u_resolution;
   uniform vec3 u_tint;
-  vec3 base_colour = vec3(0.039, 0.055, 0.110); // #0A0E1C — deep midnight
+  // Three stacked pigment layers — darkest to lightest
+  vec3 benzi_brown = vec3(0.36, 0.18, 0.12);  // PBr25 benzimidazolone brown — deep warm red-brown
+  vec3 copper      = vec3(0.72, 0.45, 0.20);  // copper — warm metallic mid-tone
+  vec3 azo_yellow  = vec3(0.91, 0.70, 0.09);  // PY74 azo yellow — hot golden top layer
+  vec3 magenta     = vec3(0.84, 0.08, 0.44);  // magenta light that shines through
+  vec3 deep_violet = vec3(0.044, 0.024, 0.07); // deep violet overlay
   float hash(vec2 p) {
     p = fract(p * vec2(234.34, 435.345));
     p += dot(p, p + 34.23);
@@ -49,21 +54,29 @@ const FRAGMENT_SRC = `
   void main() {
     vec2 uv = (gl_FragCoord.xy - u_resolution * 0.5) / min(u_resolution.x, u_resolution.y);
     float t = u_time * 0.025;
+    // low-frequency noise fields so the pigment layers blur into each other
     vec2 q = uv + vec2(fbm(uv + t), fbm(uv + vec2(1.7, 9.2) + t));
-    float f = fbm(q * 2.0 + t * 0.3);
-    vec3 colour = base_colour;
-    // slow drifting undertone through the noise field — colour bleeds in
-    // from whichever product hue is currently active
-    colour += (f - 0.5) * 0.16 * u_tint;
-    // faint central lift, breathing slowly
-    float centre_glow = smoothstep(0.45, 0.0, length(uv));
-    colour = mix(colour, base_colour + u_tint * 0.14, centre_glow * 0.35 * (0.5 + 0.5 * sin(u_time * 0.2)));
-    // deep vignette toward the edges
+    float f1 = fbm(q * 0.9 + t * 0.15);
+    float f2 = fbm(q * 1.4 + t * 0.25 + vec2(3.1, 5.7));
+    float f3 = fbm(q * 2.0 + t * 0.35 + vec2(7.3, 2.1));
+    // stack: benzi brown base, copper bleeds through (most transparent), azo yellow on top
+    // wide smoothstep bands = soft edges between layers
+    vec3 colour = benzi_brown;
+    colour = mix(colour, copper, smoothstep(0.18, 0.72, f2) * 0.3);
+    colour = mix(colour, azo_yellow, smoothstep(0.22, 0.78, f3) * 0.5);
+    // active colourway bleed
+    colour += (f1 - 0.5) * 0.2 * u_tint;
+    // magenta central light, breathing slowly
+    float centre_glow = smoothstep(0.5, 0.0, length(uv));
+    colour = mix(colour, magenta * 0.7, centre_glow * 0.5 * (0.5 + 0.5 * sin(u_time * 0.18)));
+    // deep vignette to near-black at edges
     float dist_centre = length(uv * vec2(0.9, 1.1));
-    float vignette = 1.0 - smoothstep(0.25, 1.3, dist_centre);
-    colour *= (0.55 + 0.45 * vignette);
-    // fine grain
-    float grain = (hash(gl_FragCoord.xy + u_time * 0.1) - 0.5) * 0.02;
+    float vignette = 1.0 - smoothstep(0.2, 1.3, dist_centre);
+    colour *= (0.4 + 0.6 * vignette);
+    // deep violet overlay at 63% to push it back
+    colour = mix(colour, deep_violet, 0.63);
+    // grain
+    float grain = (hash(gl_FragCoord.xy + u_time * 0.1) - 0.5) * 0.025;
     colour += grain;
     gl_FragColor = vec4(clamp(colour, 0.0, 1.0), 1.0);
   }
@@ -78,26 +91,22 @@ interface Particle {
   base: [number, number, number, number];
 }
 
-// Floating motes in varying shades of light violet, drifting up through
-// the midnight field like dye pigment suspended in a vat. Each one's final
-// colour is nudged toward the active product hue at render time, so the
-// whole field warms or cools in step with the shader behind it.
 const PARTICLE_COLOURS: [number, number, number, number][] = [
-  [229, 225, 247, 0.22], // pale mist
-  [201, 191, 240, 0.20], // light lavender
-  [156, 143, 217, 0.22], // violet
-  [176, 160, 230, 0.18], // soft amethyst
-  [111, 97, 176, 0.16], // deeper violet
+  [232, 192, 112, 0.22], // warm gold
+  [204, 153, 80, 0.20],  // amber
+  [184, 115, 51, 0.18],  // copper
+  [214, 170, 90, 0.20],  // pale bronze
+  [160, 100, 55, 0.16],  // dark copper
 ];
 
-const TEAL_TINT: [number, number, number] = [0.078, 0.49, 0.478]; // #147D7A, default/fallback
+const DEFAULT_TINT: [number, number, number] = [0.72, 0.45, 0.20]; // copper default
 
 function hexToRgb01(hex: string): [number, number, number] {
   const clean = hex.replace('#', '');
   const r = parseInt(clean.substring(0, 2), 16) / 255;
   const g = parseInt(clean.substring(2, 4), 16) / 255;
   const b = parseInt(clean.substring(4, 6), 16) / 255;
-  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return TEAL_TINT;
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return DEFAULT_TINT;
   return [r, g, b];
 }
 
@@ -110,7 +119,7 @@ export function CanvasBackground() {
   // Smoothed tint that eases toward whatever colourway is active — read
   // imperatively from the zustand store each frame so the WebGL loop never
   // has to re-render React.
-  const currentTintRef = useRef<[number, number, number]>([...TEAL_TINT]);
+  const currentTintRef = useRef<[number, number, number]>([...DEFAULT_TINT]);
 
   useEffect(() => {
     const canvas = glCanvasRef.current;
