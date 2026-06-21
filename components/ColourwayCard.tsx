@@ -2,6 +2,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Colourway, colourways } from '@/data/colourways';
+import { useUiStore } from '@/store/useUiStore';
 
 // Repurposed from ArtworkCard: same scroll-reveal wipe mechanic, but the
 // five peeling layers are now literally the five dye-run colours, so the
@@ -17,6 +18,7 @@ interface ColourwayCardProps {
 export function ColourwayCard({ colourway, onSelect }: ColourwayCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [revealed, setRevealed] = useState(false);
+  const setActiveColourway = useUiStore((s) => s.setActiveColourway);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -30,6 +32,23 @@ export function ColourwayCard({ colourway, onSelect }: ColourwayCardProps) {
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, [revealed]);
+
+  // Separate from the one-shot reveal above: this fires every time the card
+  // crosses the centre band of the viewport, feeding its hex into the
+  // global store so the shader background behind it eases toward this
+  // colourway for as long as it's the one in frame.
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const tintObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setActiveColourway(colourway.hex);
+      },
+      { rootMargin: '-42% 0px -42% 0px', threshold: 0 }
+    );
+    tintObserver.observe(node);
+    return () => tintObserver.disconnect();
+  }, [colourway.hex, setActiveColourway]);
 
   const src = `${basePath}${colourway.image}`;
 
