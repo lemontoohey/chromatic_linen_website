@@ -1,0 +1,11 @@
+<svg width="1024" height="520" viewBox="0 0 1024 520" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Placeholder recreation of the Beacon Laundry mark (teal wave + wordmark),
+    built from the logo preview only — no source file was supplied.
+    Swap this for the real logo.svg / logo.png as soon as it's available.
+  -->
+  <path d="M 395 110 C 470 60 540 60 600 100 C 660 140 720 145 790 105 L 965 130 L 800 160 C 730 195 660 190 605 150 C 545 110 480 110 415 150 Z"
+        fill="#14A6A4"/>
+  <text x="55" y="300" font-family="Arial Black, Helvetica, sans-serif" font-weight="900" font-size="150" fill="#111111" letter-spacing="-2">BEACON</text>
+  <text x="55" y="420" font-family="Arial Black, Helvetica, sans-serif" font-weight="900" font-size="86" fill="#111111" letter-spacing="-1">LAUNDRY<tspan fill="#111111">.</tspan></text>
+</svg>
