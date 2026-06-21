@@ -17,8 +17,9 @@ interface ColourwayDetailProps {
 }
 
 export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
-  const imageRef = useRef<HTMLImageElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [videoReady, setVideoReady] = useState(false);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   const glareX = useSpring(mouseX, { stiffness: 150, damping: 20 });
@@ -34,12 +35,13 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
   }
 
   useGSAP(() => {
-    if (imageRef.current) {
-      gsap.fromTo(imageRef.current, { scale: 1 }, { scale: 1.04, duration: 20, ease: 'none' });
+    if (videoRef.current) {
+      gsap.fromTo(videoRef.current, { scale: 1 }, { scale: 1.04, duration: 20, ease: 'none' });
     }
   }, [colourway.id]);
 
   const src = `${basePath}${colourway.image}`;
+  const videoSrc = `${basePath}/assets/beacon_laundry_intro.mp4`;
 
   return (
     <motion.div
@@ -68,12 +70,32 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
         style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}
       >
         <motion.img
-          ref={imageRef}
           layoutId={`colourway-image-${colourway.id}`}
           src={src}
           alt={colourway.name}
           className="w-full h-full object-cover"
         />
+        <motion.div
+          className="absolute inset-0 overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1.2, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <video
+            ref={videoRef}
+            src={videoSrc}
+            autoPlay
+            muted
+            loop
+            playsInline
+            onCanPlay={() => setVideoReady(true)}
+            className="w-full h-full object-cover"
+          />
+          <div
+            className="absolute inset-0 mix-blend-color"
+            style={{ backgroundColor: colourway.hex }}
+          />
+        </motion.div>
         <motion.div
           className="absolute inset-0 pointer-events-none mix-blend-overlay"
           style={{
