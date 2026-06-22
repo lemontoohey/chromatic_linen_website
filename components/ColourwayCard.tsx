@@ -41,60 +41,66 @@ export function ColourwayCard({ colourway, onSelect }: ColourwayCardProps) {
     <div ref={ref} className="cursor-pointer w-[82vw] md:w-[42vw]" onClick={() => onSelect(colourway)}>
       <div className="relative">
         {/* Ambient colour glow */}
-        <div
-          aria-hidden
-          className="absolute -inset-12 pointer-events-none blur-[70px] mix-blend-screen"
-          style={{ background: `radial-gradient(ellipse 55% 65% at 50% 44%, ${colourway.hex}18 0%, transparent 70%)` }}
-        />
+        <div aria-hidden className="absolute -inset-12 pointer-events-none blur-[70px] mix-blend-screen"
+          style={{ background: `radial-gradient(ellipse 55% 65% at 50% 44%, ${colourway.hex}14 0%, transparent 70%)` }} />
+        {/* Secondary violet wash */}
+        <div aria-hidden className="absolute -inset-12 pointer-events-none blur-[90px] mix-blend-screen"
+          style={{ background: 'radial-gradient(ellipse 45% 55% at 50% 44%, rgba(90,30,120,0.09) 0%, transparent 70%)' }} />
 
         <motion.div
           layoutId={`colourway-container-${colourway.id}`}
           className="relative w-full h-[60vh] md:h-[72vh] overflow-hidden"
-          style={{ boxShadow: '0 40px 80px -20px rgba(10,5,25,0.9), 0 0 30px 2px rgba(90,30,120,0.15)' }}
+          style={{ boxShadow: '0 40px 80px -20px rgba(10,5,25,1), 0 0 30px 2px rgba(90,30,120,0.2)' }}
         >
           <motion.div layoutId={`colourway-image-${colourway.id}`} className="absolute inset-0">
             <FabricSwatch hex={colourway.hex} className="w-full h-full" />
           </motion.div>
 
-          {/* Benzi reveal wipe — peels away on scroll */}
+          {/* Benzi reveal wipes — three brown layers peel on scroll */}
           <motion.div className="absolute inset-0 bg-[#592512] mix-blend-color z-[3] pointer-events-none"
-            initial={{ opacity: 0.85 }} animate={revealed ? { opacity: 0 } : { opacity: 0.85 }}
-            transition={{ duration: 2.2, delay: 0.1, ease: [0.22, 0.61, 0.36, 1] }} />
+            initial={{ opacity: 0.82 }} animate={revealed ? { opacity: 0 } : { opacity: 0.82 }}
+            transition={{ duration: 2.2, delay: 0.2, ease: [0.22, 0.61, 0.36, 1] }} />
           <motion.div className="absolute inset-0 bg-[#3a1707] z-[3] pointer-events-none"
-            initial={{ opacity: 0.85 }} animate={revealed ? { opacity: 0 } : { opacity: 0.85 }}
-            transition={{ duration: 2.2, delay: 0.15, ease: [0.22, 0.61, 0.36, 1] }} />
+            initial={{ opacity: 0.82 }} animate={revealed ? { opacity: 0 } : { opacity: 0.82 }}
+            transition={{ duration: 2.2, delay: 0.2, ease: [0.22, 0.61, 0.36, 1] }} />
           <motion.div className="absolute inset-0 bg-[#8b3d2a] mix-blend-color z-[3] pointer-events-none"
             initial={{ opacity: 0.5 }} animate={revealed ? { opacity: 0 } : { opacity: 0.5 }}
-            transition={{ duration: 2.5, delay: 0.05, ease: [0.22, 0.61, 0.36, 1] }} />
+            transition={{ duration: 2.5, delay: 0.15, ease: [0.22, 0.61, 0.36, 1] }} />
 
-          {/* Magenta light flash on reveal */}
+          {/* Magenta flash on reveal */}
           {revealed && (
-            <motion.div className="absolute inset-0 bg-[#E40078] mix-blend-screen blur-[60px] pointer-events-none z-[4]"
+            <motion.div className="absolute inset-0 bg-magenta mix-blend-screen blur-[60px] pointer-events-none z-[4]"
               initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: [0, 0.06, 0], scale: [0.9, 1.1, 1.15] }}
-              transition={{ duration: 1.5, delay: 0.3, ease: 'easeOut' }} />
+              animate={{ opacity: [0, 0.07, 0], scale: [0.9, 1.1, 1.15] }}
+              transition={{ duration: 1.5, delay: 0.35, ease: 'easeOut' }} />
           )}
+          {/* Brown light flash */}
           {revealed && (
             <motion.div className="absolute inset-0 bg-[#c85a42] mix-blend-screen blur-[80px] pointer-events-none z-[4]"
               initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: [0, 0.22, 0], scale: [0.9, 1.02, 1.03] }}
-              transition={{ duration: 2.2, delay: 0.1, ease: 'easeOut' }} />
+              animate={{ opacity: [0, 0.28, 0], scale: [0.9, 1.02, 1.03] }}
+              transition={{ duration: 2.2, delay: 0.15, ease: 'easeOut' }} />
           )}
 
-          {/* Vignette + inset shadow */}
+          {/* Radial vignette */}
           <div aria-hidden className="absolute inset-0 pointer-events-none z-[5]"
-            style={{ background: 'radial-gradient(ellipse 85% 85% at 50% 50%, transparent 40%, rgba(10,14,28,0.55) 78%, rgba(10,14,28,0.92) 100%)' }} />
+            style={{ background: 'radial-gradient(ellipse 85% 85% at 50% 50%, transparent 40%, rgba(6,0,12,0.55) 78%, rgba(6,0,12,0.92) 100%)' }} />
+          {/* Inset shadow */}
           <div aria-hidden className="absolute inset-0 pointer-events-none z-[5]"
-            style={{ boxShadow: 'inset 0 0 50px 10px rgba(10,14,28,0.7)' }} />
+            style={{ boxShadow: 'inset 0 0 50px 10px rgba(6,0,12,0.7)' }} />
+          {/* Noise */}
+          <div className="absolute inset-0 z-[5] pointer-events-none opacity-[0.015] bg-noise mix-blend-overlay" aria-hidden />
         </motion.div>
       </div>
 
-      <div className="flex items-baseline justify-between mt-4">
+      <div className="flex items-baseline justify-between mt-5">
         <div>
-          <p className="font-serif text-[12px] tracking-[0.25em] uppercase text-mist/80">{colourway.name}</p>
-          <p className="font-sans text-[11px] tracking-[0.1em] text-mist/45">{colourway.suited}</p>
+          <span className="font-serif tracking-[0.25em] text-[11px] uppercase text-parchment/70">{colourway.name}</span>
+          <p className="font-sans text-[10px] tracking-[0.1em] text-parchment/40 mt-1">{colourway.suited}</p>
         </div>
-        <p className="font-sans text-[11px] tracking-[0.2em] uppercase text-mist/50">from {colourway.standardFrom}</p>
+        <span className="font-serif tracking-[0.25em] text-[11px] uppercase text-parchment/70">
+          {colourway.standardFrom}
+        </span>
       </div>
     </div>
   );

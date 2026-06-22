@@ -29,40 +29,53 @@ const FRAG = `
   }
   float fbm(vec2 p) {
     float v = 0.0, a = 0.5;
-    for (int i = 0; i < 6; i++) {
-      v += a * noise(p);
-      p = p * 2.1 + vec2(1.7, 9.2);
-      a *= 0.5;
+    for (int i = 0; i < 5; i++) {
+      v += a * noise(p); p = p * 2.0 + vec2(1.7, 9.2); a *= 0.5;
     }
     return v;
   }
   void main() {
     vec2 uv = gl_FragCoord.xy / u_resolution;
-    float t = u_time * 0.012;
-    // large-scale fold/drape
-    vec2 q = uv * 2.0 + vec2(fbm(uv * 2.5 + t), fbm(uv * 2.5 + vec2(5.2,1.3) + t * 0.8));
-    float fold = fbm(q * 1.2 + t * 0.15);
-    // warp/weft weave texture
-    float warp = fbm(uv * vec2(3.0, 14.0) + vec2(t * 0.3, 0.0));
-    float weft = fbm(uv * vec2(14.0, 3.0) + vec2(0.0, t * 0.2));
-    float weave = mix(warp, weft, 0.5 + 0.08 * sin(t * 1.5));
-    // layer colours by depth
-    vec3 colour = mix(u_shadow, u_base, smoothstep(0.3, 0.6, fold));
-    colour = mix(colour, u_highlight, smoothstep(0.55, 0.78, weave) * 0.45);
-    colour = mix(colour, u_deep, smoothstep(0.35, 0.15, fold) * 0.35);
-    // subtle shifting light across the folds
-    float lightPhase = t * 0.4;
+    float t = u_time * 0.008;
+
+    // terry cloth loop grid — dense pile pattern
+    vec2 loopUV = uv * 55.0;
+    vec2 cell = fract(loopUV);
+    float loopDist = length(cell - 0.5);
+    float loop = smoothstep(0.42, 0.18, loopDist);
+    // variation per loop so they're not identical
+    vec2 cellID = floor(loopUV);
+    float loopVar = hash(cellID) * 0.3 + 0.7;
+    loop *= loopVar;
+
+    // large-scale drape/fold for breathing
+    vec2 q = uv * 2.0 + vec2(fbm(uv * 2.5 + t), fbm(uv * 2.5 + vec2(5.2,1.3) + t * 0.7));
+    float fold = fbm(q * 1.0 + t * 0.12);
+
+    // combine: base colour modulated by loops and folds
+    vec3 colour = mix(u_shadow, u_base, fold * 0.8 + 0.2);
+    // loop tops are lighter (pile catches light)
+    colour = mix(colour, u_highlight, loop * 0.45 * (0.7 + 0.3 * fold));
+    // gaps between loops are darker
+    float gap = 1.0 - smoothstep(0.15, 0.4, loopDist);
+    colour = mix(colour, u_deep, (1.0 - loop) * 0.2 * gap * loopVar);
+
+    // slow directional light shift across folds
+    float lightPhase = t * 0.5;
     vec2 lightDir = vec2(cos(lightPhase), sin(lightPhase));
     float grad = fold * 2.0 - 1.0;
-    float light = dot(vec2(grad, grad * 0.7), lightDir);
-    colour += u_highlight * light * 0.08;
+    float light = dot(vec2(grad, grad * 0.6), lightDir);
+    colour += u_highlight * light * 0.06;
+
     // fine thread grain
-    float grain = (hash(gl_FragCoord.xy + u_time * 0.1) - 0.5) * 0.018;
+    float grain = (hash(gl_FragCoord.xy + u_time * 0.05) - 0.5) * 0.015;
     colour += grain;
-    // gentle vignette
+
+    // soft vignette
     vec2 vc = uv - 0.5;
     float vig = 1.0 - smoothstep(0.3, 0.85, length(vc * vec2(1.0, 0.8)));
-    colour *= 0.88 + 0.12 * vig;
+    colour *= 0.9 + 0.1 * vig;
+
     gl_FragColor = vec4(clamp(colour, 0.0, 1.0), 1.0);
   }
 `;
@@ -121,12 +134,12 @@ export function FabricSwatch({ hex, className }: FabricSwatchProps) {
 
     const base = hexToVec3(hex);
     const highlight: [number, number, number] = [
-      Math.min(1, base[0] * 1.45 + 0.1),
-      Math.min(1, base[1] * 1.45 + 0.1),
-      Math.min(1, base[2] * 1.45 + 0.1),
+      Math.min(1, base[0] * 1.5 + 0.12),
+      Math.min(1, base[1] * 1.5 + 0.12),
+      Math.min(1, base[2] * 1.5 + 0.12),
     ];
-    const shadow: [number, number, number] = [base[0] * 0.5, base[1] * 0.5, base[2] * 0.5];
-    const deep: [number, number, number] = [base[0] * 0.25, base[1] * 0.25, base[2] * 0.25];
+    const shadow: [number, number, number] = [base[0] * 0.45, base[1] * 0.45, base[2] * 0.45];
+    const deep: [number, number, number] = [base[0] * 0.2, base[1] * 0.2, base[2] * 0.2];
 
     gl.uniform3f(baseLoc, ...base);
     gl.uniform3f(hlLoc, ...highlight);

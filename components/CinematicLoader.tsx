@@ -23,9 +23,9 @@ export function CinematicLoader() {
   }, [setHasLoaded]);
 
   return (
-    <div ref={loaderRef} className="fixed inset-0 z-[200] flex items-center justify-center bg-midnight pointer-events-none">
-      <div className="w-1/2 max-w-sm h-px bg-midnight/50 overflow-hidden relative">
-        <div ref={barRef} className="absolute inset-y-0 left-0 w-full bg-teal scale-x-0 origin-left" />
+    <div ref={loaderRef} className="fixed inset-0 z-[200] flex items-center justify-center bg-void pointer-events-none">
+      <div className="w-1/2 max-w-sm h-px bg-void/50 overflow-hidden relative">
+        <div ref={barRef} className="absolute inset-y-0 left-0 w-full bg-vermillion scale-x-0 origin-left" />
       </div>
     </div>
   );

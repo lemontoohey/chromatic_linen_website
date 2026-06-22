@@ -10,16 +10,11 @@ const CinematicLoader = dynamic(() => import('@/components/CinematicLoader').the
 const PageTransition = dynamic(() => import('@/components/PageTransition').then(mod => mod.PageTransition), { ssr: false });
 
 const playfair = Playfair_Display({
-  subsets: ['latin'],
-  variable: '--font-serif',
-  display: 'swap',
-  weight: ['400', '500', '600', '700'],
-  style: ['normal', 'italic'],
+  subsets: ['latin'], variable: '--font-playfair', display: 'swap',
+  weight: ['400', '500', '600', '700'], style: ['normal', 'italic'],
 });
 const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
+  subsets: ['latin'], variable: '--font-inter', display: 'swap',
   weight: ['300', '400', '500'],
 });
 
@@ -32,17 +27,15 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover' as const,
-  themeColor: '#0A0E1C',
+  themeColor: '#06000c',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
-      <body className="bg-midnight text-mist font-sans antialiased overflow-x-hidden selection:bg-teal selection:text-midnight min-h-screen">
+      <body className="bg-void text-parchment font-sans antialiased overflow-x-hidden selection:bg-vermillion selection:text-void min-h-screen">
         <CinematicLoader />
         <CanvasBackground />
-        <div className="bg-noise" />
-        <div className="outer-burn" />
         <PageTransition />
         <Providers>
           <SiteNav />

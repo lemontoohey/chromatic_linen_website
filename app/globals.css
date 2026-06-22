@@ -3,50 +3,32 @@
 @tailwind utilities;
 
 :root {
-  --color-midnight: #0A0E1C;
-  --color-mist: #E5E1F7;
-  --color-violet: #9C8FD9;
-  --color-sage: #7C8A6B;
-  --color-terracotta: #C16A47;
-  --color-dune: #D8C39E;
-  --color-slate: #5C7480;
-  --color-charcoal: #3A332C;
-  --color-teal: #147D7A;
+  --color-void: #06000c;
+  --color-magenta: #E40078;
+  --color-pg7: #005F56;
+  --color-parchment: #FDF5E6;
+  --color-vermillion: #E34234;
+  --color-benzi: #962814;
   --font-sans: var(--font-inter), sans-serif;
   --font-serif: var(--font-playfair), serif;
 }
 
-html, body {
-  background-color: var(--color-midnight);
-  color: var(--color-mist);
+body {
+  background-color: var(--color-void);
+  color: var(--color-parchment);
   overflow-x: hidden;
   overscroll-behavior: none;
   touch-action: pan-y;
 }
-
-* {
-  box-sizing: border-box;
+html {
+  overscroll-behavior: none;
+  background-color: var(--color-void);
 }
 
-.bg-noise {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
-  background-repeat: repeat;
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 5;
-  mix-blend-mode: overlay;
-  opacity: 0.12;
-}
-
-.image-crack-wrapper {
-  clip-path: inset(0 100% 0 0);
-  will-change: clip-path;
-  transition: clip-path 1.2s cubic-bezier(0.22, 1, 0.36, 1);
-}
+* { box-sizing: border-box; }
 
 .page-transition-overlay {
-  background-color: var(--color-midnight);
+  background-color: var(--color-void);
 }
 @media (min-width: 769px) {
   .page-transition-overlay {
@@ -54,15 +36,13 @@ html, body {
   }
 }
 
-.outer-burn {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 6;
-  background: radial-gradient(
-    ellipse at center,
-    transparent 50%,
-    rgba(2, 3, 8, 0.45) 85%,
-    rgba(0, 0, 0, 0.7) 100%
-  );
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+.image-crack-wrapper {
+  clip-path: inset(0 100% 0 0);
+  will-change: clip-path;
+  transition: clip-path 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }

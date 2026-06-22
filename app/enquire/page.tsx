@@ -66,20 +66,20 @@ export default function EnquirePage() {
     }
   }
 
-  const fieldLabel = 'font-sans text-[10px] tracking-[0.25em] uppercase text-mist/45';
+  const fieldLabel = 'font-sans text-[10px] tracking-[0.25em] uppercase text-parchment/45';
   const fieldInput =
-    'w-full bg-transparent border-0 border-b border-mist/15 focus:border-teal outline-none py-2.5 font-sans text-sm text-mist placeholder:text-mist/25 transition-colors duration-500';
+    'w-full bg-transparent border-0 border-b border-parchment/15 focus:border-teal outline-none py-2.5 font-sans text-sm text-parchment placeholder:text-parchment/25 transition-colors duration-500';
 
   return (
     <div className="w-full min-h-screen px-6 md:px-24 pt-32 pb-32 flex flex-col gap-12 max-w-2xl">
       <div className="flex flex-col gap-4">
-        <p className="font-sans text-[10px] tracking-[0.35em] uppercase text-mist/40">
+        <p className="font-sans text-[10px] tracking-[0.35em] uppercase text-parchment/40">
           Enquire
         </p>
-        <h1 className="font-serif text-3xl md:text-4xl tracking-wide text-mist">
+        <h1 className="font-serif text-3xl md:text-4xl tracking-wide text-parchment">
           Stock Chromatic Linen at your property
         </h1>
-        <p className="font-sans text-sm leading-relaxed text-mist/70">
+        <p className="font-sans text-sm leading-relaxed text-parchment/70">
           Chromatic Linen is currently moving from pilot to first supply
           through Byron Bay Holiday Hire. If you run a BnB, boutique motel,
           caravan park or holiday rental in the Northern Rivers and want to
@@ -96,12 +96,12 @@ export default function EnquirePage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col gap-3 py-10 border-t border-mist/10"
+            className="flex flex-col gap-3 py-10 border-t border-parchment/10"
           >
-            <p className="font-serif text-xl text-mist">
+            <p className="font-serif text-xl text-parchment">
               {status === 'success' ? 'Enquiry received.' : 'Your mail app should now be open.'}
             </p>
-            <p className="font-sans text-sm text-mist/60 leading-relaxed">
+            <p className="font-sans text-sm text-parchment/60 leading-relaxed">
               {status === 'success'
                 ? "Thank you — we'll follow up shortly with swatch options and next steps."
                 : 'We pre-filled an email with everything you entered. Send it through and we will follow up shortly.'}
@@ -184,7 +184,7 @@ export default function EnquirePage() {
                       />
                       <span
                         className={`font-sans text-[9px] tracking-[0.15em] uppercase transition-colors duration-300 ${
-                          active ? 'text-mist/85' : 'text-mist/35 group-hover:text-mist/60'
+                          active ? 'text-parchment/85' : 'text-parchment/35 group-hover:text-parchment/60'
                         }`}
                       >
                         {c.name}
@@ -205,11 +205,11 @@ export default function EnquirePage() {
                 value={volume}
                 onChange={(e) => setVolume(e.target.value)}
               >
-                <option value="" className="bg-midnight">
+                <option value="" className="bg-void">
                   Select a range
                 </option>
                 {VOLUME_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt} className="bg-midnight">
+                  <option key={opt} value={opt} className="bg-void">
                     {opt}
                   </option>
                 ))}
@@ -233,7 +233,7 @@ export default function EnquirePage() {
             <button
               type="submit"
               disabled={status === 'sending'}
-              className="mt-2 font-sans text-[11px] tracking-[0.3em] uppercase text-mist/80 border border-mist/30 px-8 py-3 self-start hover:border-teal hover:text-teal transition-colors duration-500 disabled:opacity-40"
+              className="mt-2 font-sans text-[11px] tracking-[0.3em] uppercase text-parchment/80 border border-parchment/30 px-8 py-3 self-start hover:border-teal hover:text-teal transition-colors duration-500 disabled:opacity-40"
             >
               {status === 'sending' ? 'Sending…' : 'Send enquiry'}
             </button>
@@ -241,11 +241,11 @@ export default function EnquirePage() {
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-2 pt-6 border-t border-mist/10">
-        <p className="font-sans text-xs tracking-[0.15em] uppercase text-mist/50">
+      <div className="flex flex-col gap-2 pt-6 border-t border-parchment/10">
+        <p className="font-sans text-xs tracking-[0.15em] uppercase text-parchment/50">
           Want a custom colour match for your property?
         </p>
-        <p className="font-sans text-sm text-mist/65 leading-relaxed">
+        <p className="font-sans text-sm text-parchment/65 leading-relaxed">
           Bespoke colour runs are available for boutique operators with a
           strong design identity — select your closest match above and
           mention it in your message, and we&rsquo;ll follow up with swatch
@@ -253,11 +253,11 @@ export default function EnquirePage() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 pt-6 border-t border-mist/10">
-        <p className="font-sans text-xs tracking-[0.15em] uppercase text-mist/50">
+      <div className="flex flex-col gap-2 pt-6 border-t border-parchment/10">
+        <p className="font-sans text-xs tracking-[0.15em] uppercase text-parchment/50">
           Distributed by
         </p>
-        <p className="font-sans text-sm text-mist/65">
+        <p className="font-sans text-sm text-parchment/65">
           Byron Bay Holiday Hire — servicing Byron Bay, Ballina, Lennox
           Head &amp; Kingscliff
         </p>
