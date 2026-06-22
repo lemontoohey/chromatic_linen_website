@@ -35,27 +35,38 @@ const FRAG = `
     return v;
   }
 
-  vec3 deriveHighlight(vec3 c) { return clamp(c * 1.45 + 0.10, 0.0, 1.0); }
-  vec3 deriveShadow(vec3 c)    { return c * 0.48; }
-  vec3 deriveDeep(vec3 c)      { return c * 0.22; }
+  vec3 deriveHighlight(vec3 c) { return clamp(c * 1.28 + 0.06, 0.0, 1.0); }
+  vec3 deriveShadow(vec3 c)    { return c * 0.62; }
+  vec3 deriveDeep(vec3 c)      { return c * 0.34; }
 
   float foldAt(vec2 uv, float t) {
     vec2 q = uv * 2.0 + vec2(fbm(uv * 2.5 + t), fbm(uv * 2.5 + vec2(5.2, 1.3) + t * 0.7));
     return fbm(q + t * 0.1);
   }
 
+  float fleck(vec2 uv, float scale, vec2 drift, float t, float seed) {
+    vec2 p = uv * scale + drift * t + seed;
+    vec2 cell = floor(p);
+    vec2 f = fract(p) - 0.5;
+    float h = hash(cell + seed);
+    vec2 jitter = vec2(hash(cell + seed + 1.7), hash(cell + seed + 5.3)) - 0.5;
+    float dist = length(f - jitter * 0.55);
+    float radius = mix(0.05, 0.2, hash(cell + seed + 3.1));
+    float presence = step(0.62, h);
+    return presence * smoothstep(radius, radius * 0.25, dist);
+  }
+
   void main() {
     vec2 uv = gl_FragCoord.xy / u_resolution;
     float t = u_time * 0.006;
 
-    // dye-layer blending — two independent noise fields drive uneven colour
-    // migration, the way real dye uptake works across fibre
+    vec3 avg = mix(mix(u_layerA, u_layerB, 0.5), u_layerC, 0.34 * step(2.5, u_layerCount));
     float dyeMaskA = fbm(uv * 2.2 + vec2(1.7, 4.1) + t * 0.04);
     float dyeMaskB = fbm(uv * 2.6 + vec2(8.3, 2.5) - t * 0.03);
-    vec3 dyeColour = mix(u_layerA, u_layerB, smoothstep(0.32, 0.68, dyeMaskA));
-    dyeColour = mix(dyeColour, u_layerC, smoothstep(0.38, 0.62, dyeMaskB) * step(2.5, u_layerCount));
+    vec3 dyeVariation = mix(u_layerA, u_layerB, smoothstep(0.32, 0.68, dyeMaskA));
+    dyeVariation = mix(dyeVariation, u_layerC, smoothstep(0.38, 0.62, dyeMaskB) * step(2.5, u_layerCount));
+    vec3 mainColour = mix(avg, dyeVariation, 0.2);
 
-    // terry cloth loop pile
     vec2 loopUV = uv * 55.0;
     vec2 cell = fract(loopUV);
     float loopDist = length(cell - 0.5);
@@ -64,40 +75,42 @@ const FRAG = `
     float loopVar = hash(cellID) * 0.3 + 0.7;
     loop *= loopVar;
 
-    // fold/drape height field + true surface normal via finite differences
     float fold = foldAt(uv, t);
     float eps = 1.6 / u_resolution.x;
     float foldX = foldAt(uv + vec2(eps, 0.0), t);
     float foldY = foldAt(uv + vec2(0.0, eps), t);
     vec3 normal = normalize(vec3(-(foldX - fold) * 6.0, -(foldY - fold) * 6.0, 1.0));
 
-    // slow-drifting light, proper Lambertian diffuse off the fold normal
     float lightPhase = t * 0.4;
     vec3 lightDir = normalize(vec3(cos(lightPhase), sin(lightPhase) * 0.6, 0.75));
     float diffuse = max(dot(normal, lightDir), 0.0);
-
-    // Fresnel rim — grazing-angle fold edges and loop rims catch light
     float fresnel = pow(1.0 - clamp(normal.z, 0.0, 1.0), 2.4);
 
-    // compose colour from dye layers + terry structure
-    vec3 colour = mix(deriveShadow(dyeColour), dyeColour, fold * 0.75 + 0.25);
-    colour = mix(colour, deriveHighlight(dyeColour), loop * 0.4 * (0.7 + 0.3 * fold));
+    vec3 colour = mix(deriveShadow(mainColour), mainColour, fold * 0.55 + 0.45);
+    colour = mix(colour, deriveHighlight(mainColour), loop * 0.22 * (0.6 + 0.4 * fold));
     float gap = 1.0 - smoothstep(0.15, 0.4, loopDist);
-    colour = mix(colour, deriveDeep(dyeColour), (1.0 - loop) * 0.18 * gap * loopVar);
+    colour = mix(colour, deriveDeep(mainColour), (1.0 - loop) * 0.10 * gap * loopVar);
+    colour *= 0.88 + 0.20 * diffuse;
 
-    // apply lighting
-    colour *= 0.82 + 0.34 * diffuse;
-    colour += deriveHighlight(dyeColour) * fresnel * 0.16;
+    colour += mainColour * fresnel * 0.10;
+    colour.r += fresnel * 0.008;
+    colour.b -= fresnel * 0.008;
 
-    // chromatic dispersion at the rim — light faintly splitting on the weave
-    colour.r += fresnel * 0.012;
-    colour.b -= fresnel * 0.012;
+    float lightAmt = clamp(diffuse * 0.65 + fresnel * 0.85, 0.0, 1.0);
+    float fA = fleck(uv, 11.0, vec2(0.35, 0.20), t, 11.0);
+    colour = mix(colour, u_layerA, (0.025 + fA * 0.38) * mix(0.22, 1.0, lightAmt));
+    if (u_layerCount > 1.5) {
+      float fB = fleck(uv, 14.0, vec2(-0.55, 0.40), t, 27.0);
+      colour = mix(colour, u_layerB, (0.025 + fB * 0.38) * mix(0.22, 1.0, lightAmt));
+    }
+    if (u_layerCount > 2.5) {
+      float fC = fleck(uv, 9.0, vec2(0.70, -0.60), t, 53.0);
+      colour = mix(colour, u_layerC, (0.025 + fC * 0.38) * mix(0.22, 1.0, lightAmt));
+    }
 
-    // fine thread grain
-    float grain = (hash(gl_FragCoord.xy + u_time * 0.04) - 0.5) * 0.012;
+    float grain = (hash(gl_FragCoord.xy + u_time * 0.04) - 0.5) * 0.009;
     colour += grain;
 
-    // soft vignette
     vec2 vc = uv - 0.5;
     float vig = 1.0 - smoothstep(0.32, 0.88, length(vc * vec2(1.0, 0.82)));
     colour *= 0.92 + 0.08 * vig;
