@@ -10,10 +10,10 @@ const FRAG = `
   precision highp float;
   uniform float u_time;
   uniform vec2 u_resolution;
-  uniform vec3 u_base;
-  uniform vec3 u_highlight;
-  uniform vec3 u_shadow;
-  uniform vec3 u_deep;
+  uniform vec3 u_layerA;
+  uniform vec3 u_layerB;
+  uniform vec3 u_layerC;
+  uniform float u_layerCount;
 
   float hash(vec2 p) {
     p = fract(p * vec2(234.34, 435.345));
@@ -23,8 +23,8 @@ const FRAG = `
   float noise(vec2 p) {
     vec2 i = floor(p); vec2 f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
-    float a = hash(i), b = hash(i + vec2(1,0));
-    float c = hash(i + vec2(0,1)), d = hash(i + vec2(1,1));
+    float a = hash(i), b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
   }
   float fbm(vec2 p) {
@@ -34,47 +34,73 @@ const FRAG = `
     }
     return v;
   }
+
+  vec3 deriveHighlight(vec3 c) { return clamp(c * 1.45 + 0.10, 0.0, 1.0); }
+  vec3 deriveShadow(vec3 c)    { return c * 0.48; }
+  vec3 deriveDeep(vec3 c)      { return c * 0.22; }
+
+  float foldAt(vec2 uv, float t) {
+    vec2 q = uv * 2.0 + vec2(fbm(uv * 2.5 + t), fbm(uv * 2.5 + vec2(5.2, 1.3) + t * 0.7));
+    return fbm(q + t * 0.1);
+  }
+
   void main() {
     vec2 uv = gl_FragCoord.xy / u_resolution;
-    float t = u_time * 0.008;
+    float t = u_time * 0.006;
 
-    // terry cloth loop grid — dense pile pattern
+    // dye-layer blending — two independent noise fields drive uneven colour
+    // migration, the way real dye uptake works across fibre
+    float dyeMaskA = fbm(uv * 2.2 + vec2(1.7, 4.1) + t * 0.04);
+    float dyeMaskB = fbm(uv * 2.6 + vec2(8.3, 2.5) - t * 0.03);
+    vec3 dyeColour = mix(u_layerA, u_layerB, smoothstep(0.32, 0.68, dyeMaskA));
+    dyeColour = mix(dyeColour, u_layerC, smoothstep(0.38, 0.62, dyeMaskB) * step(2.5, u_layerCount));
+
+    // terry cloth loop pile
     vec2 loopUV = uv * 55.0;
     vec2 cell = fract(loopUV);
     float loopDist = length(cell - 0.5);
     float loop = smoothstep(0.42, 0.18, loopDist);
-    // variation per loop so they're not identical
     vec2 cellID = floor(loopUV);
     float loopVar = hash(cellID) * 0.3 + 0.7;
     loop *= loopVar;
 
-    // large-scale drape/fold for breathing
-    vec2 q = uv * 2.0 + vec2(fbm(uv * 2.5 + t), fbm(uv * 2.5 + vec2(5.2,1.3) + t * 0.7));
-    float fold = fbm(q * 1.0 + t * 0.12);
+    // fold/drape height field + true surface normal via finite differences
+    float fold = foldAt(uv, t);
+    float eps = 1.6 / u_resolution.x;
+    float foldX = foldAt(uv + vec2(eps, 0.0), t);
+    float foldY = foldAt(uv + vec2(0.0, eps), t);
+    vec3 normal = normalize(vec3(-(foldX - fold) * 6.0, -(foldY - fold) * 6.0, 1.0));
 
-    // combine: base colour modulated by loops and folds
-    vec3 colour = mix(u_shadow, u_base, fold * 0.8 + 0.2);
-    // loop tops are lighter (pile catches light)
-    colour = mix(colour, u_highlight, loop * 0.45 * (0.7 + 0.3 * fold));
-    // gaps between loops are darker
+    // slow-drifting light, proper Lambertian diffuse off the fold normal
+    float lightPhase = t * 0.4;
+    vec3 lightDir = normalize(vec3(cos(lightPhase), sin(lightPhase) * 0.6, 0.75));
+    float diffuse = max(dot(normal, lightDir), 0.0);
+
+    // Fresnel rim — grazing-angle fold edges and loop rims catch light
+    float fresnel = pow(1.0 - clamp(normal.z, 0.0, 1.0), 2.4);
+
+    // compose colour from dye layers + terry structure
+    vec3 colour = mix(deriveShadow(dyeColour), dyeColour, fold * 0.75 + 0.25);
+    colour = mix(colour, deriveHighlight(dyeColour), loop * 0.4 * (0.7 + 0.3 * fold));
     float gap = 1.0 - smoothstep(0.15, 0.4, loopDist);
-    colour = mix(colour, u_deep, (1.0 - loop) * 0.2 * gap * loopVar);
+    colour = mix(colour, deriveDeep(dyeColour), (1.0 - loop) * 0.18 * gap * loopVar);
 
-    // slow directional light shift across folds
-    float lightPhase = t * 0.5;
-    vec2 lightDir = vec2(cos(lightPhase), sin(lightPhase));
-    float grad = fold * 2.0 - 1.0;
-    float light = dot(vec2(grad, grad * 0.6), lightDir);
-    colour += u_highlight * light * 0.06;
+    // apply lighting
+    colour *= 0.82 + 0.34 * diffuse;
+    colour += deriveHighlight(dyeColour) * fresnel * 0.16;
+
+    // chromatic dispersion at the rim — light faintly splitting on the weave
+    colour.r += fresnel * 0.012;
+    colour.b -= fresnel * 0.012;
 
     // fine thread grain
-    float grain = (hash(gl_FragCoord.xy + u_time * 0.05) - 0.5) * 0.015;
+    float grain = (hash(gl_FragCoord.xy + u_time * 0.04) - 0.5) * 0.012;
     colour += grain;
 
     // soft vignette
     vec2 vc = uv - 0.5;
-    float vig = 1.0 - smoothstep(0.3, 0.85, length(vc * vec2(1.0, 0.8)));
-    colour *= 0.9 + 0.1 * vig;
+    float vig = 1.0 - smoothstep(0.32, 0.88, length(vc * vec2(1.0, 0.82)));
+    colour *= 0.92 + 0.08 * vig;
 
     gl_FragColor = vec4(clamp(colour, 0.0, 1.0), 1.0);
   }
@@ -91,12 +117,14 @@ function hexToVec3(hex: string): [number, number, number] {
 
 interface FabricSwatchProps {
   hex: string;
+  layers?: string[];
   className?: string;
 }
 
-export function FabricSwatch({ hex, className }: FabricSwatchProps) {
+export function FabricSwatch({ hex, layers, className }: FabricSwatchProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
+  const layersKey = (layers ?? []).join(',');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -127,24 +155,19 @@ export function FabricSwatch({ hex, className }: FabricSwatchProps) {
 
     const timeLoc = gl.getUniformLocation(prog, 'u_time');
     const resLoc = gl.getUniformLocation(prog, 'u_resolution');
-    const baseLoc = gl.getUniformLocation(prog, 'u_base');
-    const hlLoc = gl.getUniformLocation(prog, 'u_highlight');
-    const shLoc = gl.getUniformLocation(prog, 'u_shadow');
-    const dpLoc = gl.getUniformLocation(prog, 'u_deep');
+    const layerALoc = gl.getUniformLocation(prog, 'u_layerA');
+    const layerBLoc = gl.getUniformLocation(prog, 'u_layerB');
+    const layerCLoc = gl.getUniformLocation(prog, 'u_layerC');
+    const layerCountLoc = gl.getUniformLocation(prog, 'u_layerCount');
 
-    const base = hexToVec3(hex);
-    const highlight: [number, number, number] = [
-      Math.min(1, base[0] * 1.5 + 0.12),
-      Math.min(1, base[1] * 1.5 + 0.12),
-      Math.min(1, base[2] * 1.5 + 0.12),
-    ];
-    const shadow: [number, number, number] = [base[0] * 0.45, base[1] * 0.45, base[2] * 0.45];
-    const deep: [number, number, number] = [base[0] * 0.2, base[1] * 0.2, base[2] * 0.2];
+    const provided = (layers && layers.length > 0 ? layers : [hex]).slice(0, 3);
+    const layerCount = provided.length;
+    while (provided.length < 3) provided.push(provided[provided.length - 1]);
 
-    gl.uniform3f(baseLoc, ...base);
-    gl.uniform3f(hlLoc, ...highlight);
-    gl.uniform3f(shLoc, ...shadow);
-    gl.uniform3f(dpLoc, ...deep);
+    gl.uniform3f(layerALoc, ...hexToVec3(provided[0]));
+    gl.uniform3f(layerBLoc, ...hexToVec3(provided[1]));
+    gl.uniform3f(layerCLoc, ...hexToVec3(provided[2]));
+    gl.uniform1f(layerCountLoc, layerCount);
 
     function resize() {
       const rect = canvas!.getBoundingClientRect();
@@ -170,7 +193,7 @@ export function FabricSwatch({ hex, className }: FabricSwatchProps) {
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [hex]);
+  }, [hex, layersKey]);
 
   return <canvas ref={canvasRef} className={className} style={{ width: '100%', height: '100%' }} />;
 }

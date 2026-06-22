@@ -5,19 +5,21 @@ import gsap from 'gsap';
 import { Colourway } from '@/data/colourways';
 import { FabricSwatch } from '@/components/FabricSwatch';
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-
 interface ColourwayDetailProps {
   colourway: Colourway;
   onClose?: () => void;
 }
 
 export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const imageRef = useRef<HTMLDivElement>(null);
   const [hasHover, setHasHover] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => { setHasHover(window.matchMedia('(hover: hover)').matches); }, []);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setRevealed(true));
+    return () => cancelAnimationFrame(id);
+  }, [colourway.id]);
 
   useEffect(() => {
     if (!imageRef.current) return;
@@ -45,8 +47,6 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
   }
   function handleMouseLeave() { rotateX.set(0); rotateY.set(0); }
 
-  const videoSrc = `${basePath}/assets/beacon_laundry_intro.mp4`;
-
   const textContainerVariants = {
     hidden: { opacity: 0 },
     show: { opacity: 1, transition: { staggerChildren: 0.12, delayChildren: 0.6 } },
@@ -66,14 +66,14 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
       <div className="relative [perspective:2000px] md:absolute md:inset-0">
         {/* Ambient wall cast */}
         <motion.div className="absolute z-0 pointer-events-none mix-blend-screen blur-[40px] md:blur-[60px]"
-          style={{ background: `radial-gradient(circle at 50% 50%, ${colourway.hex}30 0%, transparent 60%)`, width: '60vw', height: '80vh', left: 'calc(50% - 30vw)', top: 'calc(50% - 40vh)' }}
-          animate={{ scale: [1, 1.05, 1], opacity: [0.4, 0.7, 0.4] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }} />
+          style={{ background: `radial-gradient(circle at 50% 50%, ${colourway.hex}24 0%, transparent 60%)`, width: '60vw', height: '80vh', left: 'calc(50% - 30vw)', top: 'calc(50% - 40vh)' }}
+          animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }} />
         {/* Violet wash */}
         <motion.div className="absolute z-0 pointer-events-none mix-blend-screen blur-[80px] md:blur-[100px]"
-          style={{ background: 'radial-gradient(circle at 50% 50%, rgba(90,30,120,0.18) 0%, transparent 65%)', width: '60vw', height: '80vh', left: 'calc(50% - 30vw)', top: 'calc(50% - 40vh)' }}
-          animate={{ scale: [1.05, 1, 1.05], opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }} />
+          style={{ background: 'radial-gradient(circle at 50% 50%, rgba(90,30,120,0.13) 0%, transparent 65%)', width: '60vw', height: '80vh', left: 'calc(50% - 30vw)', top: 'calc(50% - 40vh)' }}
+          animate={{ scale: [1.05, 1, 1.05], opacity: [0.25, 0.45, 0.25] }}
+          transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }} />
 
         <div className="relative flex flex-col gap-4 z-10 w-[82vw] mx-auto md:mx-0 md:absolute md:w-[42vw] md:[left:calc(38%_-_21vw)] md:[top:calc(50%_-_36vh)]">
           <motion.div
@@ -88,55 +88,33 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
           >
             {/* Inset violet-edge-burn */}
             <div className="absolute inset-0 pointer-events-none z-[6]"
-              style={{ boxShadow: 'inset 0 0 60px 10px rgba(107, 0, 56, 0.15)' }} aria-hidden />
+              style={{ boxShadow: 'inset 0 0 60px 10px rgba(107, 0, 56, 0.12)' }} aria-hidden />
             {/* Noise */}
             <div className="absolute inset-0 z-[5] pointer-events-none opacity-[0.015] bg-noise mix-blend-overlay" aria-hidden />
 
             <motion.div ref={imageRef} layoutId={`colourway-image-${colourway.id}`} className="absolute inset-0 w-full h-full">
-              {/* Fabric base — blur-to-sharp on mount */}
+              {/* The fabric itself — blur-to-sharp on mount */}
               <motion.div className="absolute inset-0"
-                initial={{ filter: 'blur(8px)' }} animate={{ filter: 'blur(0px)' }}
-                transition={{ duration: 2.0, delay: 0.3, ease: [0.22, 0.61, 0.36, 1] }}>
-                <FabricSwatch hex={colourway.hex} className="w-full h-full" />
+                initial={{ filter: 'blur(10px)', scale: 1.02 }}
+                animate={{ filter: 'blur(0px)', scale: 1 }}
+                transition={{ duration: 2.4, delay: 0.3, ease: [0.22, 0.61, 0.36, 1] }}>
+                <FabricSwatch hex={colourway.hex} layers={colourway.dyeLayers} className="w-full h-full" />
               </motion.div>
 
-              {/* Video overlay — fades in tinted to colourway colour */}
-              <motion.div className="absolute inset-0 z-[1]"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                transition={{ duration: 1.4, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}>
-                <video ref={videoRef} src={videoSrc} autoPlay muted loop playsInline className="w-full h-full object-cover" />
-                <div className="absolute inset-0 mix-blend-color" style={{ backgroundColor: colourway.hex }} />
-              </motion.div>
+              {/* Mist veil — lifts once on entry */}
+              <motion.div className="absolute inset-0 z-[3] pointer-events-none bg-void/70 backdrop-blur-md"
+                initial={{ opacity: 1 }}
+                animate={revealed ? { opacity: 0 } : { opacity: 1 }}
+                transition={{ duration: 3.0, delay: 0.1, ease: [0.22, 0.61, 0.36, 1] }} />
 
-              {/* Beacon logo appears over the video */}
-              <motion.div className="absolute inset-0 z-[2] flex items-center justify-center"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                transition={{ duration: 2, delay: 1.5, ease: 'easeOut' }}>
-                <img src={`${basePath}/assets/beacon-laundry-logo.svg`} alt="Beacon Laundry"
-                  className="h-10 md:h-14 opacity-20" />
-              </motion.div>
-
-              {/* Benzi reveal overlays */}
-              <motion.div className="absolute inset-0 bg-[#592512] mix-blend-color z-[3] pointer-events-none"
-                initial={{ opacity: 0.82 }} animate={{ opacity: 0 }}
-                transition={{ duration: 2.2, delay: 0.2, ease: [0.22, 0.61, 0.36, 1] }} />
-              <motion.div className="absolute inset-0 bg-[#3a1707] z-[3] pointer-events-none"
-                initial={{ opacity: 0.82 }} animate={{ opacity: 0 }}
-                transition={{ duration: 2.2, delay: 0.2, ease: [0.22, 0.61, 0.36, 1] }} />
-              <motion.div className="absolute inset-0 bg-[#8b3d2a] mix-blend-color z-[3] pointer-events-none"
-                initial={{ opacity: 0.5 }} animate={{ opacity: 0 }}
-                transition={{ duration: 2.5, delay: 0.15, ease: [0.22, 0.61, 0.36, 1] }} />
-
-              {/* Magenta light flash */}
-              <motion.div className="absolute inset-0 bg-magenta mix-blend-screen blur-[60px] pointer-events-none z-[4]"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: [0, 0.07, 0], scale: [0.9, 1.1, 1.15] }}
-                transition={{ duration: 1.5, delay: 0.35, ease: 'easeOut' }} />
-              {/* Warm brown light flash */}
-              <motion.div className="absolute inset-0 bg-[#c85a42] mix-blend-screen blur-[80px] pointer-events-none z-[4]"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: [0, 0.28, 0], scale: [0.9, 1.02, 1.03] }}
-                transition={{ duration: 2.2, delay: 0.15, ease: 'easeOut' }} />
+              {/* One soft diagonal light sweep on reveal */}
+              {revealed && (
+                <motion.div className="absolute inset-0 z-[4] pointer-events-none mix-blend-screen"
+                  style={{ background: 'linear-gradient(115deg, transparent 38%, rgba(255,255,255,0.16) 50%, transparent 62%)' }}
+                  initial={{ x: '-130%' }}
+                  animate={{ x: '130%' }}
+                  transition={{ duration: 2.6, delay: 0.35, ease: [0.16, 1, 0.3, 1] }} />
+              )}
 
               {/* Varnish sheen — interactive glare */}
               <motion.div className="absolute inset-0 z-20 pointer-events-none mix-blend-overlay opacity-30"
