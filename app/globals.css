@@ -12,13 +12,15 @@
   --color-slate: #5C7480;
   --color-charcoal: #3A332C;
   --color-teal: #147D7A;
+  --font-sans: var(--font-inter), sans-serif;
+  --font-serif: var(--font-playfair), serif;
 }
 
 html, body {
   background-color: var(--color-midnight);
   color: var(--color-mist);
   overflow-x: hidden;
-  overflow-y: auto;
+  overscroll-behavior: none;
   touch-action: pan-y;
 }
 
@@ -26,36 +28,32 @@ html, body {
   box-sizing: border-box;
 }
 
-/* Fine grain over the whole page — reads as atmosphere on the dark base */
 .bg-noise {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 128 128' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  background-repeat: repeat;
   pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 5;
   mix-blend-mode: overlay;
+  opacity: 0.12;
 }
 
 .image-crack-wrapper {
-  clip-path: inset(0 0 0 0);
-  transition: clip-path 0.8s cubic-bezier(0.76, 0, 0.24, 1);
+  clip-path: inset(0 100% 0 0);
+  will-change: clip-path;
+  transition: clip-path 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Page transition wipe overlay */
 .page-transition-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  background: rgba(156, 143, 217, 1); /* violet */
+  background-color: var(--color-midnight);
 }
-@media (min-width: 768px) {
+@media (min-width: 769px) {
   .page-transition-overlay {
-    background: rgba(20, 125, 122, 1); /* teal on desktop */
+    background-color: rgba(64, 96, 96, 1);
   }
 }
 
-/* Deep vignette — darkens to near-black at the edges, midnight at the centre */
 .outer-burn {
   position: fixed;
   inset: 0;

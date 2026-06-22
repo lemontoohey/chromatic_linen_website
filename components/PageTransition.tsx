@@ -1,21 +1,33 @@
 'use client';
-import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useUiStore } from '@/store/useUiStore';
 
-export function PageTransition({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+export function PageTransition() {
+  const isTransitioning = useUiStore((s) => s.isTransitioning);
+  const setIsTransitioning = useUiStore((s) => s.setIsTransitioning);
+  const [phase, setPhase] = useState<'idle' | 'flash' | 'dissolve'>('idle');
+
+  useEffect(() => {
+    if (isTransitioning) setPhase('flash');
+  }, [isTransitioning]);
+
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={pathname}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.5, ease: [0.76, 0, 0.24, 1] }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <motion.div
+      className="fixed inset-0 z-[1000] pointer-events-none page-transition-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: phase === 'flash' ? 0.3 : 0 }}
+      transition={
+        phase === 'flash'
+          ? { duration: 0.1, ease: 'easeOut' }
+          : phase === 'dissolve'
+            ? { duration: 0.8, ease: [0.4, 0, 0.2, 1] }
+            : { duration: 0 }
+      }
+      onAnimationComplete={() => {
+        if (phase === 'flash') setPhase('dissolve');
+        else if (phase === 'dissolve') { setPhase('idle'); setIsTransitioning(false); }
+      }}
+    />
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, ReactNode } from 'react';
 import Lenis from 'lenis';
+import gsap from 'gsap';
 import { useUiStore } from '@/store/useUiStore';
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -11,15 +12,10 @@ export function Providers({ children }: { children: ReactNode }) {
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
     });
-    lenis.on('scroll', ({ velocity }: { velocity: number }) => {
-      setScrollVelocity(velocity);
-    });
-    function raf(time: number) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-    return () => lenis.destroy();
+    lenis.on('scroll', () => { setScrollVelocity(lenis.velocity); });
+    const onFrame = (time: number) => { lenis.raf(time * 1000); };
+    gsap.ticker.add(onFrame);
+    return () => { lenis.destroy(); gsap.ticker.remove(onFrame); };
   }, [setScrollVelocity]);
 
   return <>{children}</>;
