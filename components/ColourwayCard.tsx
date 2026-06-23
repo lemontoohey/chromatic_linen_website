@@ -5,6 +5,20 @@ import { Colourway } from '@/data/colourways';
 import { FabricSwatch } from '@/components/FabricSwatch';
 import { useUiStore } from '@/store/useUiStore';
 
+function avgHex(layers?: string[]): string {
+  if (!layers || layers.length === 0) return '#888888';
+  let r = 0, g = 0, b = 0;
+  for (const h of layers) {
+    const c = h.replace('#', '');
+    r += parseInt(c.substring(0, 2), 16);
+    g += parseInt(c.substring(2, 4), 16);
+    b += parseInt(c.substring(4, 6), 16);
+  }
+  const n = layers.length;
+  const toHex = (v: number) => Math.round(v / n).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 interface ColourwayCardProps {
   colourway: Colourway;
   onSelect: (c: Colourway) => void;
@@ -61,20 +75,15 @@ export function ColourwayCard({ colourway, onSelect }: ColourwayCardProps) {
             <FabricSwatch hex={colourway.hex} layers={colourway.dyeLayers} className="w-full h-full" />
           </motion.div>
 
+          {/* Solid colour topcoat — averaged dye layers at 73% opacity */}
+          <div className="absolute inset-0 z-[2] pointer-events-none"
+            style={{ backgroundColor: avgHex(colourway.dyeLayers), opacity: 0.73 }} />
+
           {/* Mist veil — lifts once to reveal the fabric */}
           <motion.div className="absolute inset-0 z-[3] pointer-events-none bg-void/70 backdrop-blur-md"
             initial={{ opacity: 1 }}
             animate={revealed ? { opacity: 0 } : { opacity: 1 }}
             transition={{ duration: 2.8, delay: 0.1, ease: [0.22, 0.61, 0.36, 1] }} />
-
-          {/* One soft diagonal light sweep on reveal */}
-          {revealed && (
-            <motion.div className="absolute inset-0 z-[4] pointer-events-none mix-blend-screen"
-              style={{ background: 'linear-gradient(115deg, transparent 38%, rgba(255,255,255,0.14) 50%, transparent 62%)' }}
-              initial={{ x: '-130%' }}
-              animate={{ x: '130%' }}
-              transition={{ duration: 2.4, delay: 0.3, ease: [0.16, 1, 0.3, 1] }} />
-          )}
 
           {/* Radial vignette */}
           <div aria-hidden className="absolute inset-0 pointer-events-none z-[5]"
