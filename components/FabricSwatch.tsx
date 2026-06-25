@@ -1,5 +1,7 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getDeviceProfile } from '@/lib/deviceTier';
+import { sharedTicker } from '@/lib/sharedTicker';
 
 const VERT = `
   attribute vec2 a_position;
@@ -27,95 +29,36 @@ const FRAG = `
     float c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
   }
-  float fbm(vec2 p) {
+  float fbm(vec2 p, float maxOct) {
     float v = 0.0, a = 0.5;
     for (int i = 0; i < 5; i++) {
+      if (float(i) >= maxOct) break;
       v += a * noise(p); p = p * 2.0 + vec2(1.7, 9.2); a *= 0.5;
     }
     return v;
   }
 
-  vec3 deriveHighlight(vec3 c) { return clamp(c * 1.28 + 0.06, 0.0, 1.0); }
-  vec3 deriveShadow(vec3 c)    { return c * 0.62; }
-  vec3 deriveDeep(vec3 c)      { return c * 0.34; }
-
-  float foldAt(vec2 uv, float t) {
-    vec2 q = uv * 2.0 + vec2(fbm(uv * 2.5 + t), fbm(uv * 2.5 + vec2(5.2, 1.3) + t * 0.7));
-    return fbm(q + t * 0.1);
-  }
-
-  float fleck(vec2 uv, float scale, vec2 drift, float t, float seed) {
-    vec2 p = uv * scale + drift * t + seed;
-    vec2 cell = floor(p);
-    vec2 f = fract(p) - 0.5;
-    float h = hash(cell + seed);
-    vec2 jitter = vec2(hash(cell + seed + 1.7), hash(cell + seed + 5.3)) - 0.5;
-    float dist = length(f - jitter * 0.55);
-    float radius = mix(0.05, 0.2, hash(cell + seed + 3.1));
-    float presence = step(0.62, h);
-    return presence * smoothstep(radius, radius * 0.25, dist);
-  }
-
   void main() {
     vec2 uv = gl_FragCoord.xy / u_resolution;
-    float t = u_time * 0.006;
+    float t = u_time * 0.004;
 
-    vec3 avg = mix(mix(u_layerA, u_layerB, 0.5), u_layerC, 0.34 * step(2.5, u_layerCount));
-    float dyeMaskA = fbm(uv * 2.2 + vec2(1.7, 4.1) + t * 0.04);
-    float dyeMaskB = fbm(uv * 2.6 + vec2(8.3, 2.5) - t * 0.03);
-    vec3 dyeVariation = mix(u_layerA, u_layerB, smoothstep(0.32, 0.68, dyeMaskA));
-    dyeVariation = mix(dyeVariation, u_layerC, smoothstep(0.38, 0.62, dyeMaskB) * step(2.5, u_layerCount));
-    vec3 mainColour = mix(avg, dyeVariation, 0.2);
+    vec3 base = mix(mix(u_layerA, u_layerB, 0.5), u_layerC, 0.34 * step(2.5, u_layerCount));
 
-    vec2 loopUV = uv * 55.0;
-    vec2 cell = fract(loopUV);
-    float loopDist = length(cell - 0.5);
-    float loop = smoothstep(0.42, 0.18, loopDist);
-    vec2 cellID = floor(loopUV);
-    float loopVar = hash(cellID) * 0.3 + 0.7;
-    loop *= loopVar;
+    float lum = dot(base, vec3(0.299, 0.587, 0.114));
+    vec3 deepened = mix(base, base * base, 0.18);
+    vec3 colour = mix(vec3(lum), deepened, 1.12);
 
-    float fold = foldAt(uv, t);
-    float eps = 1.6 / u_resolution.x;
-    float foldX = foldAt(uv + vec2(eps, 0.0), t);
-    float foldY = foldAt(uv + vec2(0.0, eps), t);
-    vec3 normal = normalize(vec3(-(foldX - fold) * 6.0, -(foldY - fold) * 6.0, 1.0));
+    float sweep = noise(uv * 1.1 + vec2(t * 0.6, t * 0.3));
+    colour *= 0.94 + 0.10 * sweep;
 
-    float lightPhase = t * 0.4;
-    vec3 lightDir = normalize(vec3(cos(lightPhase), sin(lightPhase) * 0.6, 0.75));
-    float diffuse = max(dot(normal, lightDir), 0.0);
-    float fresnel = pow(1.0 - clamp(normal.z, 0.0, 1.0), 2.4);
-
-    vec3 colour = mix(deriveShadow(mainColour), mainColour, fold * 0.55 + 0.45);
-    colour = mix(colour, deriveHighlight(mainColour), loop * 0.22 * (0.6 + 0.4 * fold));
-    float gap = 1.0 - smoothstep(0.15, 0.4, loopDist);
-    colour = mix(colour, deriveDeep(mainColour), (1.0 - loop) * 0.10 * gap * loopVar);
-    colour *= 0.88 + 0.20 * diffuse;
-
-    colour += mainColour * fresnel * 0.10;
-    colour.r += fresnel * 0.008;
-    colour.b -= fresnel * 0.008;
-
-    float lightAmt = clamp(diffuse * 0.65 + fresnel * 0.85, 0.0, 1.0);
-    float fA = fleck(uv, 11.0, vec2(0.35, 0.20), t, 11.0);
-    colour = mix(colour, u_layerA, (0.025 + fA * 0.38) * mix(0.22, 1.0, lightAmt));
-    if (u_layerCount > 1.5) {
-      float fB = fleck(uv, 14.0, vec2(-0.55, 0.40), t, 27.0);
-      colour = mix(colour, u_layerB, (0.025 + fB * 0.38) * mix(0.22, 1.0, lightAmt));
-    }
-    if (u_layerCount > 2.5) {
-      float fC = fleck(uv, 9.0, vec2(0.70, -0.60), t, 53.0);
-      colour = mix(colour, u_layerC, (0.025 + fC * 0.38) * mix(0.22, 1.0, lightAmt));
-    }
-
-    float grain = (hash(gl_FragCoord.xy + u_time * 0.04) - 0.5) * 0.009;
+    float grain = (hash(gl_FragCoord.xy + u_time * 0.04) - 0.5) * 0.012;
     colour += grain;
 
     vec2 vc = uv - 0.5;
-    float vig = 1.0 - smoothstep(0.32, 0.88, length(vc * vec2(1.0, 0.82)));
-    colour *= 0.92 + 0.08 * vig;
+    float vig = 1.0 - smoothstep(0.42, 0.95, length(vc * vec2(1.0, 0.84)));
+    colour *= 0.95 + 0.05 * vig;
 
-    gl_FragColor = vec4(clamp(colour, 0.0, 1.0), 1.0);
+    gl_FragColor = vec4(clamp(colour, 0.0, 1.0), 1);
   }
 `;
 
@@ -128,6 +71,15 @@ function hexToVec3(hex: string): [number, number, number] {
   ];
 }
 
+function cssFallback(hex: string, layers?: string[]): string {
+  const colours = layers && layers.length > 0 ? layers : [hex];
+  if (colours.length === 1) return colours[0];
+  const stops = colours
+    .map((c, i) => `${c} ${Math.round((i / (colours.length - 1)) * 100)}%`)
+    .join(', ');
+  return `radial-gradient(ellipse 120% 100% at 35% 25%, ${stops})`;
+}
+
 interface FabricSwatchProps {
   hex: string;
   layers?: string[];
@@ -135,15 +87,33 @@ interface FabricSwatchProps {
 }
 
 export function FabricSwatch({ hex, layers, className }: FabricSwatchProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef<number>(0);
+  const [supported, setSupported] = useState(true);
   const layersKey = (layers ?? []).join(',');
 
   useEffect(() => {
+    const container = containerRef.current;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const gl = canvas.getContext('webgl');
-    if (!gl) return;
+    if (!container || !canvas) return;
+
+    const profile = getDeviceProfile();
+    if (profile.noGpu) {
+      setSupported(false);
+      return;
+    }
+
+    const gl = canvas.getContext('webgl', {
+      antialias: false,
+      alpha: false,
+      depth: false,
+      stencil: false,
+      powerPreference: 'low-power',
+    });
+    if (!gl) {
+      setSupported(false);
+      return;
+    }
 
     function compile(type: number, src: string) {
       const s = gl!.createShader(type)!;
@@ -183,30 +153,67 @@ export function FabricSwatch({ hex, layers, className }: FabricSwatchProps) {
     gl.uniform1f(layerCountLoc, layerCount);
 
     function resize() {
-      const rect = canvas!.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio, 1.5);
-      canvas!.width = rect.width * dpr;
-      canvas!.height = rect.height * dpr;
-      gl!.viewport(0, 0, canvas!.width, canvas!.height);
+      const rect = container!.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, profile.dprCap);
+      const w = Math.max(1, Math.round(rect.width * dpr));
+      const h = Math.max(1, Math.round(rect.height * dpr));
+      if (canvas!.width !== w || canvas!.height !== h) {
+        canvas!.width = w;
+        canvas!.height = h;
+        gl!.viewport(0, 0, w, h);
+      }
     }
     resize();
     window.addEventListener('resize', resize);
 
     const start = performance.now();
-    function render() {
+    const frameBudget = 1000 / profile.targetFps;
+    let accum = 0;
+    let tickerId: symbol | null = null;
+
+    function draw(_time: number, dt: number) {
+      accum += dt;
+      if (accum < frameBudget) return;
+      accum = 0;
       const t = (performance.now() - start) / 1000;
       gl!.uniform1f(timeLoc, t);
       gl!.uniform2f(resLoc, canvas!.width, canvas!.height);
       gl!.drawArrays(gl!.TRIANGLES, 0, 6);
-      rafRef.current = requestAnimationFrame(render);
     }
-    render();
+    function subscribe() {
+      if (tickerId === null) tickerId = sharedTicker.subscribe(draw);
+    }
+    function unsubscribe() {
+      if (tickerId !== null) {
+        sharedTicker.unsubscribe(tickerId);
+        tickerId = null;
+      }
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) subscribe();
+        else unsubscribe();
+      },
+      { rootMargin: '20% 0px 20% 0px', threshold: 0 }
+    );
+    observer.observe(container);
 
     return () => {
       window.removeEventListener('resize', resize);
-      cancelAnimationFrame(rafRef.current);
+      observer.disconnect();
+      unsubscribe();
+      gl!.getExtension('WEBGL_lose_context')?.loseContext();
     };
   }, [hex, layersKey]);
 
-  return <canvas ref={canvasRef} className={className} style={{ width: '100%', height: '100%' }} />;
+  return (
+    <div ref={containerRef} className={className} style={{ width: '100%', height: '100%' }}>
+      {supported ? (
+        <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+      ) : (
+        <div style={{ width: '100%', height: '100%', background: cssFallback(hex, layers) }} />
+      )}
+    </div>
+  );
 }

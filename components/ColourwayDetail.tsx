@@ -1,9 +1,10 @@
 'use client';
 import { useRef, useEffect, useState } from 'react';
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { motion, useSpring } from 'framer-motion';
 import gsap from 'gsap';
 import { Colourway } from '@/data/colourways';
 import { FabricSwatch } from '@/components/FabricSwatch';
+import { useUiStore } from '@/store/useUiStore';
 
 function avgHex(layers?: string[]): string {
   if (!layers || layers.length === 0) return '#888888';
@@ -19,6 +20,15 @@ function avgHex(layers?: string[]): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+function darken(hex: string, amt: number) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16) * (1 - amt);
+  const g = parseInt(c.substring(2, 4), 16) * (1 - amt);
+  const b = parseInt(c.substring(4, 6), 16) * (1 - amt);
+  const toHex = (v: number) => Math.round(v).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 interface ColourwayDetailProps {
   colourway: Colourway;
   onClose?: () => void;
@@ -28,6 +38,9 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
   const imageRef = useRef<HTMLDivElement>(null);
   const [hasHover, setHasHover] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const setActiveColourway = useUiStore((s) => s.setActiveColourway);
+  const activeColourway = useUiStore((s) => s.activeColourway);
+  const isActive = activeColourway === colourway.hex;
 
   useEffect(() => { setHasHover(window.matchMedia('(hover: hover)').matches); }, []);
   useEffect(() => {
@@ -35,29 +48,24 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
     return () => cancelAnimationFrame(id);
   }, [colourway.id]);
 
+  useEffect(() => { setActiveColourway(colourway.hex); }, [colourway.id]);
+
   useEffect(() => {
     if (!imageRef.current) return;
     gsap.fromTo(imageRef.current, { scale: 1 }, { scale: 1.04, duration: 20, ease: 'none' });
     return () => { gsap.killTweensOf(imageRef.current); };
   }, [colourway.id]);
 
-  const mouseX = useMotionValue(0.5);
-  const mouseY = useMotionValue(0.5);
-  const glareX = useSpring(useTransform(mouseX, [0, 1], ['-100%', '200%']), { damping: 25, stiffness: 150 });
-  const glareY = useSpring(useTransform(mouseY, [0, 1], ['-100%', '200%']), { damping: 25, stiffness: 150 });
   const rotateX = useSpring(0, { damping: 25, stiffness: 150 });
   const rotateY = useSpring(0, { damping: 25, stiffness: 150 });
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!hasHover) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    mouseX.set((e.clientX - rect.left) / rect.width);
-    mouseY.set((e.clientY - rect.top) / rect.height);
-    if (hasHover) {
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      rotateX.set(((e.clientY - cy) / (rect.height / 2)) * -3);
-      rotateY.set(((e.clientX - cx) / (rect.width / 2)) * 3);
-    }
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    rotateX.set(((e.clientY - cy) / (rect.height / 2)) * -3);
+    rotateY.set(((e.clientX - cx) / (rect.width / 2)) * 3);
   }
   function handleMouseLeave() { rotateX.set(0); rotateY.set(0); }
 
@@ -78,17 +86,6 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
       </button>
 
       <div className="relative [perspective:2000px] md:absolute md:inset-0">
-        {/* Ambient wall cast */}
-        <motion.div className="absolute z-0 pointer-events-none mix-blend-screen blur-[40px] md:blur-[60px]"
-          style={{ background: `radial-gradient(circle at 50% 50%, ${colourway.hex}24 0%, transparent 60%)`, width: '60vw', height: '80vh', left: 'calc(50% - 30vw)', top: 'calc(50% - 40vh)' }}
-          animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.5, 0.3] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }} />
-        {/* Violet wash */}
-        <motion.div className="absolute z-0 pointer-events-none mix-blend-screen blur-[80px] md:blur-[100px]"
-          style={{ background: 'radial-gradient(circle at 50% 50%, rgba(90,30,120,0.13) 0%, transparent 65%)', width: '60vw', height: '80vh', left: 'calc(50% - 30vw)', top: 'calc(50% - 40vh)' }}
-          animate={{ scale: [1.05, 1, 1.05], opacity: [0.25, 0.45, 0.25] }}
-          transition={{ duration: 13, repeat: Infinity, ease: 'easeInOut' }} />
-
         <div className="relative flex flex-col gap-4 z-10 w-[82vw] mx-auto md:mx-0 md:absolute md:w-[42vw] md:[left:calc(38%_-_21vw)] md:[top:calc(50%_-_36vh)]">
           <motion.div
             layoutId={`colourway-container-${colourway.id}`}
@@ -100,14 +97,10 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
               rotateX, rotateY,
             }}
           >
-            {/* Inset violet-edge-burn */}
-            <div className="absolute inset-0 pointer-events-none z-[6]"
-              style={{ boxShadow: 'inset 0 0 60px 10px rgba(107, 0, 56, 0.12)' }} aria-hidden />
             {/* Noise */}
             <div className="absolute inset-0 z-[5] pointer-events-none opacity-[0.015] bg-noise mix-blend-overlay" aria-hidden />
 
             <motion.div ref={imageRef} layoutId={`colourway-image-${colourway.id}`} className="absolute inset-0 w-full h-full">
-              {/* The fabric itself — blur-to-sharp on mount */}
               <motion.div className="absolute inset-0"
                 initial={{ filter: 'blur(10px)', scale: 1.02 }}
                 animate={{ filter: 'blur(0px)', scale: 1 }}
@@ -115,27 +108,25 @@ export function ColourwayDetail({ colourway, onClose }: ColourwayDetailProps) {
                 <FabricSwatch hex={colourway.hex} layers={colourway.dyeLayers} className="w-full h-full" />
               </motion.div>
 
-              {/* Solid colour topcoat — averaged dye layers at 73% opacity */}
+              {/* Solid colour topcoat */}
               <div className="absolute inset-0 z-[2] pointer-events-none"
                 style={{ backgroundColor: avgHex(colourway.dyeLayers), opacity: 0.73 }} />
-
-              {/* Mist veil — lifts once on entry */}
-              <motion.div className="absolute inset-0 z-[3] pointer-events-none bg-void/70 backdrop-blur-md"
-                initial={{ opacity: 1 }}
-                animate={revealed ? { opacity: 0 } : { opacity: 1 }}
-                transition={{ duration: 3.0, delay: 0.1, ease: [0.22, 0.61, 0.36, 1] }} />
-
-              {/* Varnish sheen — interactive glare */}
-              <motion.div className="absolute inset-0 z-20 pointer-events-none mix-blend-overlay opacity-30"
-                style={{
-                  background: 'radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, transparent 50%)',
-                  x: glareX, y: glareY, scale: 2,
-                }} />
             </motion.div>
 
             {/* Radial vignette */}
             <div aria-hidden className="absolute inset-0 pointer-events-none z-[5]"
               style={{ background: 'radial-gradient(ellipse 85% 85% at 50% 50%, transparent 40%, rgba(6,0,12,0.55) 78%, rgba(6,0,12,0.92) 100%)' }} />
+
+            {/* Colour-burn edge glow */}
+            <motion.div
+              className="absolute inset-0 pointer-events-none z-[6] mix-blend-color-burn"
+              style={{
+                background: `radial-gradient(ellipse 90% 90% at 50% 50%, transparent 58%, ${darken(colourway.hex, 0.45)} 100%)`,
+              }}
+              animate={{ opacity: isActive ? 0.5 : 0.08 }}
+              transition={{ duration: 0.8, ease: [0.22, 0.61, 0.36, 1] }}
+              aria-hidden
+            />
           </motion.div>
         </div>
       </div>

@@ -19,6 +19,15 @@ function avgHex(layers?: string[]): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+function darken(hex: string, amt: number) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16) * (1 - amt);
+  const g = parseInt(c.substring(2, 4), 16) * (1 - amt);
+  const b = parseInt(c.substring(4, 6), 16) * (1 - amt);
+  const toHex = (v: number) => Math.round(v).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 interface ColourwayCardProps {
   colourway: Colourway;
   onSelect: (c: Colourway) => void;
@@ -28,6 +37,8 @@ export function ColourwayCard({ colourway, onSelect }: ColourwayCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [revealed, setRevealed] = useState(false);
   const setActiveColourway = useUiStore((s) => s.setActiveColourway);
+  const activeColourway = useUiStore((s) => s.activeColourway);
+  const isActive = activeColourway === colourway.hex;
 
   useEffect(() => {
     const node = ref.current;
@@ -54,12 +65,6 @@ export function ColourwayCard({ colourway, onSelect }: ColourwayCardProps) {
   return (
     <div ref={ref} className="cursor-pointer w-[82vw] md:w-[42vw]" onClick={() => onSelect(colourway)}>
       <div className="relative">
-        {/* Ambient colour glow */}
-        <div aria-hidden className="absolute -inset-12 pointer-events-none blur-[70px] mix-blend-screen"
-          style={{ background: `radial-gradient(ellipse 55% 65% at 50% 44%, ${colourway.hex}12 0%, transparent 70%)` }} />
-        <div aria-hidden className="absolute -inset-12 pointer-events-none blur-[90px] mix-blend-screen"
-          style={{ background: 'radial-gradient(ellipse 45% 55% at 50% 44%, rgba(90,30,120,0.07) 0%, transparent 70%)' }} />
-
         <motion.div
           layoutId={`colourway-container-${colourway.id}`}
           className="relative w-full h-[60vh] md:h-[72vh] overflow-hidden"
@@ -75,15 +80,9 @@ export function ColourwayCard({ colourway, onSelect }: ColourwayCardProps) {
             <FabricSwatch hex={colourway.hex} layers={colourway.dyeLayers} className="w-full h-full" />
           </motion.div>
 
-          {/* Solid colour topcoat — averaged dye layers at 73% opacity */}
+          {/* Solid colour topcoat */}
           <div className="absolute inset-0 z-[2] pointer-events-none"
             style={{ backgroundColor: avgHex(colourway.dyeLayers), opacity: 0.73 }} />
-
-          {/* Mist veil — lifts once to reveal the fabric */}
-          <motion.div className="absolute inset-0 z-[3] pointer-events-none bg-void/70 backdrop-blur-md"
-            initial={{ opacity: 1 }}
-            animate={revealed ? { opacity: 0 } : { opacity: 1 }}
-            transition={{ duration: 2.8, delay: 0.1, ease: [0.22, 0.61, 0.36, 1] }} />
 
           {/* Radial vignette */}
           <div aria-hidden className="absolute inset-0 pointer-events-none z-[5]"
@@ -93,6 +92,17 @@ export function ColourwayCard({ colourway, onSelect }: ColourwayCardProps) {
             style={{ boxShadow: 'inset 0 0 50px 10px rgba(6,0,12,0.7)' }} />
           {/* Noise */}
           <div className="absolute inset-0 z-[5] pointer-events-none opacity-[0.015] bg-noise mix-blend-overlay" aria-hidden />
+
+          {/* Colour-burn edge glow */}
+          <motion.div
+            className="absolute inset-0 pointer-events-none z-[6] mix-blend-color-burn"
+            style={{
+              background: `radial-gradient(ellipse 90% 90% at 50% 50%, transparent 58%, ${darken(colourway.hex, 0.45)} 100%)`,
+            }}
+            animate={{ opacity: isActive ? 0.3 : 0.08 }}
+            transition={{ duration: 0.8, ease: [0.22, 0.61, 0.36, 1] }}
+            aria-hidden
+          />
         </motion.div>
       </div>
 
